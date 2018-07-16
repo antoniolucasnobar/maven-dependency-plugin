@@ -1,6 +1,6 @@
 package org.apache.maven.plugins.dependency.resolvers;
 
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,24 @@ package org.apache.maven.plugins.dependency.resolvers;
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
- * under the License.    
+ * under the License.
  */
+
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.dependency.utils.DependencyUtil;
+import org.apache.maven.plugins.annotations.Execute;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.plugins.dependency.utils.DependencyUtil;
 import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.shared.artifact.filter.collection.ArtifactsFilter;
 import org.apache.maven.shared.artifact.filter.resolve.TransformableFilter;
@@ -33,26 +42,30 @@ import org.apache.maven.shared.transfer.dependencies.DefaultDependableCoordinate
 import org.apache.maven.shared.transfer.dependencies.DependableCoordinate;
 import org.apache.maven.shared.transfer.dependencies.resolve.DependencyResolverException;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 /**
  * Goal that resolves all project dependencies, including plugins and reports and their dependencies.
  *
- * <a href="mailto:brianf@apache.org">Brian Fox</a>
+ * @author <a href="mailto:brianf@apache.org">Brian Fox</a>
  * @author Maarten Mulders
  * @since 2.0
  */
-@Mojo( name = "go-offline", threadSafe = true )
+@Mojo( name = "go-offline", requiresDependencyCollection = ResolutionScope.TEST, threadSafe = true )
+@Execute( goal = "resolve-plugins" )
 public class GoOfflineMojo
     extends AbstractResolveMojo
 {
     /**
-     * Main entry into mojo. Gets the list of dependencies, resolves all that are not in the Reactor, and iterates
-     * through displaying the resolved versions.
+     * Include parent poms in the dependency resolution list.
+     *
+     * @since 3.1.2
+     */
+    @Parameter( property = "includeParents", defaultValue = "false" )
+    private boolean includeParents;
+
+    /**
+     * Main entry into mojo. Gets the list of dependencies, filters them by the include/exclude parameters
+     * provided and iterates through downloading the resolved version.
+     * if the version is not present in the local repository.
      *
      * @throws MojoExecutionException with a message if an error occurs.
      */
